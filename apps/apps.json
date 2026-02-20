@@ -57,7 +57,7 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "34.0.0",
-      "build_script": "npm ci --ignore-scripts && node node_modules/@sentry/cli/scripts/install.js && npx patch-package && node ./scripts/generate-assets.js && cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/ && mkdir -p android/app/src/main/assets/fonts && cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/ && npm run apply-16kb-pagesize-patch && ./node_modules/.bin/jetify && bundle install && bundle exec fastlane android unsigned",
+      "build_script": "npm ci --ignore-scripts && node node_modules/@sentry/cli/scripts/install.js && npx patch-package && node ./scripts/generate-assets.js && cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf assets/fonts/ && mkdir -p android/app/src/main/assets/fonts && cp node_modules/@mattermost/compass-icons/font/compass-icons.ttf android/app/src/main/assets/fonts/ && npm run apply-16kb-pagesize-patch && ./node_modules/.bin/jetify && cd fastlane && bundle install && bundle exec fastlane android unsigned",
       "build_artifact_path": "Mattermost-unsigned.apk",
       "post_signing": true,
       "output_name": "mattermost",
