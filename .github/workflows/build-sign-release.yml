@@ -343,7 +343,7 @@ jobs:
         if: steps.exists.outputs.exists != 'true'
         uses: anchore/sbom-action@v0
         with:
-          path: ${{ steps.verify.outputs.signed_apk }}
+          path: file:${{ steps.verify.outputs.signed_apk }}
           format: spdx-json
           output-file: sbom.spdx.json
 
@@ -351,7 +351,7 @@ jobs:
         if: steps.exists.outputs.exists != 'true'
         uses: anchore/scan-action@v3
         with:
-          path: ${{ steps.verify.outputs.signed_apk }}
+          path: sbom:sbom.spdx.json
           fail-build: false
           output-format: sarif
           output-file: grype.sarif
