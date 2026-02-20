@@ -105,7 +105,7 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "35.0.0",
-      "build_script": "./gradlew assembleWebsiteProdRelease --stacktrace",
+      "build_script": "sed -i 's/-Xmx12g/-Xmx5g/' gradle.properties && ./gradlew assembleWebsiteProdRelease --stacktrace",
       "build_artifact_path": "app/build/outputs/apk/websiteProdRelease/*.apk",
       "post_signing": true,
       "output_name": "signal",
