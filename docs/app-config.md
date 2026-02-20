@@ -5,6 +5,7 @@ Each item in `apps/apps.json` supports:
 - `id`: unique app ID used in release tags.
 - `enabled`: whether it is included in scheduled runs.
 - `upstream_repo`: `owner/repo` source to build.
+- `release_repo`: `owner/repo` destination where this app release is published.
 - `version_source`: `latest_release` or `latest_tag`.
 - `checkout_submodules`: `false`, `true`, or `recursive` for upstream checkout.
 - `working_directory`: subdir in source repo where build runs.

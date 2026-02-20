@@ -15,6 +15,7 @@ jq -e '
     has("id")
     and has("enabled")
     and has("upstream_repo")
+    and has("release_repo")
     and has("version_source")
     and has("checkout_submodules")
     and has("working_directory")

@@ -90,31 +90,40 @@ jobs:
         id: reltag
         run: echo "tag=${{ matrix.id }}-${{ steps.upstream.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
-      - name: Skip if release already exists
+      - name: Resolve release target repo
+        id: target
+        run: |
+          set -euo pipefail
+          release_repo="${{ matrix.release_repo }}"
+          if [ -z "$release_repo" ]; then
+            release_repo="${{ github.repository }}"
+          fi
+          echo "repo=$release_repo" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
         id: exists
-        uses: actions/github-script@v7
         env:
           RELEASE_TAG: ${{ steps.reltag.outputs.tag }}
-        with:
-          script: |
-            try {
-              await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: process.env.RELEASE_TAG,
-              });
-              core.setOutput('exists', 'true');
-            } catch (error) {
-              if (error.status === 404) {
-                core.setOutput('exists', 'false');
-              } else {
-                throw error;
-              }
-            }
+          RELEASE_REPO: ${{ steps.target.outputs.repo }}
+          RELEASE_REPO_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_REPO" != "${{ github.repository }}" ] && [ -z "$RELEASE_REPO_TOKEN" ]; then
+            echo "Missing RELEASE_REPO_TOKEN secret for cross-repo publishing to $RELEASE_REPO" >&2
+            exit 1
+          fi
+
+          export GH_TOKEN="${RELEASE_REPO_TOKEN:-$GH_FALLBACK_TOKEN}"
+          if gh release view "$RELEASE_TAG" -R "$RELEASE_REPO" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Existing release found
         if: steps.exists.outputs.exists == 'true'
-        run: echo "Release ${{ steps.reltag.outputs.tag }} already exists. Skipping."
+        run: echo "Release ${{ steps.reltag.outputs.tag }} already exists in ${{ steps.target.outputs.repo }}. Skipping."
 
       - name: Checkout upstream source
         if: steps.exists.outputs.exists != 'true'
@@ -326,6 +335,7 @@ jobs:
             --arg upstream_repo "${{ matrix.upstream_repo }}" \
             --arg upstream_tag "${{ steps.upstream.outputs.tag }}" \
             --arg upstream_release_url "${{ steps.upstream.outputs.release_url }}" \
+            --arg release_repo "${{ steps.target.outputs.repo }}" \
             --arg post_signing "${{ matrix.post_signing }}" \
             --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg workflow_run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
@@ -334,6 +344,7 @@ jobs:
               upstream_repo: $upstream_repo,
               upstream_tag: $upstream_tag,
               upstream_release_url: $upstream_release_url,
+              release_repo: $release_repo,
               post_signing: $post_signing,
               built_at_utc: $built_at,
               workflow_run: $workflow_run
@@ -358,21 +369,37 @@ jobs:
 
       - name: Publish release
         if: steps.exists.outputs.exists != 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.reltag.outputs.tag }}
-          name: ${{ matrix.id }} ${{ steps.upstream.outputs.tag }}
-          body: |
-            Self-built from source and signed with personal key.
+        env:
+          RELEASE_REPO: ${{ steps.target.outputs.repo }}
+          RELEASE_TAG: ${{ steps.reltag.outputs.tag }}
+          RELEASE_NAME: ${{ matrix.id }} ${{ steps.upstream.outputs.tag }}
+          RELEASE_REPO_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASE_REPO" != "${{ github.repository }}" ] && [ -z "$RELEASE_REPO_TOKEN" ]; then
+            echo "Missing RELEASE_REPO_TOKEN secret for cross-repo publishing to $RELEASE_REPO" >&2
+            exit 1
+          fi
 
-            - App ID: `${{ matrix.id }}`
-            - Upstream: `${{ matrix.upstream_repo }}`
-            - Upstream tag: `${{ steps.upstream.outputs.tag }}`
-            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          files: |
-            ${{ steps.verify.outputs.signed_apk }}
-            ${{ steps.verify.outputs.signed_apk }}.sha256
-            signing-cert-sha256.txt
-            build-metadata.json
-            sbom.spdx.json
-            grype.sarif
+          export GH_TOKEN="${RELEASE_REPO_TOKEN:-$GH_FALLBACK_TOKEN}"
+
+          {
+            echo "Self-built from source and signed with personal key."
+            echo
+            echo "- App ID: \`${{ matrix.id }}\`"
+            echo "- Upstream: \`${{ matrix.upstream_repo }}\`"
+            echo "- Upstream tag: \`${{ steps.upstream.outputs.tag }}\`"
+            echo "- Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > release-notes.md
+
+          gh release create "$RELEASE_TAG" \
+            "${{ steps.verify.outputs.signed_apk }}" \
+            "${{ steps.verify.outputs.signed_apk }}.sha256" \
+            signing-cert-sha256.txt \
+            build-metadata.json \
+            sbom.spdx.json \
+            grype.sarif \
+            --title "$RELEASE_NAME" \
+            --notes-file release-notes.md \
+            -R "$RELEASE_REPO"
