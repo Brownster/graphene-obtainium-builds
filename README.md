@@ -32,6 +32,7 @@ A single repo keeps your signing, policies, and automation in one place while st
 - `mattermost-mobile` (`mattermost/mattermost-mobile`)
 - `tailscale-android` (`tailscale/tailscale-android`)
 - `signal-android` (`signalapp/Signal-Android`)
+- `newpipe` (`TeamNewPipe/NewPipe`)
 
 ## Adding an app
 
