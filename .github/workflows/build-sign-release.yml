@@ -275,14 +275,21 @@ jobs:
             exit 1
           fi
 
-          if [ -n "$EXPECTED_SIGNING_CERT_SHA256" ] && [ "$digest" != "$EXPECTED_SIGNING_CERT_SHA256" ]; then
+          normalize_digest() {
+            echo "$1" | tr -d '[:space:]:-' | tr '[:upper:]' '[:lower:]'
+          }
+
+          actual_digest="$(normalize_digest "$digest")"
+          expected_digest="$(normalize_digest "$EXPECTED_SIGNING_CERT_SHA256")"
+
+          if [ -n "$expected_digest" ] && [ "$actual_digest" != "$expected_digest" ]; then
             echo "Signing certificate digest mismatch" >&2
             echo "Expected: $EXPECTED_SIGNING_CERT_SHA256" >&2
             echo "Actual:   $digest" >&2
             exit 1
           fi
 
-          echo "$digest" > signing-cert-sha256.txt
+          echo "$actual_digest" > signing-cert-sha256.txt
           sha256sum "$SIGNED_APK" > "$SIGNED_APK.sha256"
           echo "signed_apk=$SIGNED_APK" >> "$GITHUB_OUTPUT"
 
