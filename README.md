@@ -36,6 +36,8 @@ A single repo keeps signing, policies, and automation in one place. Each app is 
 - `newpipe` (`TeamNewPipe/NewPipe`)
 - `bitwarden-android` (`bitwarden/android`)
 - `jellyfin-android` (`jellyfin/jellyfin-android`)
+- `streamflix` (`streamflix-reborn/streamflix`)
+- `flixclusive` (`flixclusiveorg/Flixclusive`)
 
 ## Adding an app
 
