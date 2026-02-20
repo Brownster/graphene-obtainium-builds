@@ -276,11 +276,16 @@ jobs:
           fi
 
           normalize_digest() {
-            echo "$1" | tr -d '[:space:]:-' | tr '[:upper:]' '[:lower:]'
+            echo "$1" | tr -cd '[:xdigit:]' | tr '[:upper:]' '[:lower:]'
           }
 
           actual_digest="$(normalize_digest "$digest")"
           expected_digest="$(normalize_digest "$EXPECTED_SIGNING_CERT_SHA256")"
+
+          if [ -n "$expected_digest" ] && [ "${#expected_digest}" -ne 64 ]; then
+            echo "Malformed EXPECTED_SIGNING_CERT_SHA256 after normalization (expected 64 hex chars)" >&2
+            exit 1
+          fi
 
           if [ -n "$expected_digest" ] && [ "$actual_digest" != "$expected_digest" ]; then
             echo "Signing certificate digest mismatch" >&2
