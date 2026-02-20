@@ -82,8 +82,8 @@
       "go_version_file": "go.mod",
       "java_version": "17",
       "android_build_tools": "34.0.0",
-      "build_script": "make gradle-dependencies && (cd android && ./gradlew test assembleRelease)",
-      "build_artifact_path": "android/build/outputs/apk/release/android-release-unsigned.apk",
+      "build_script": "make release_aar && cd android && ./gradlew assembleFdroidRelease --stacktrace",
+      "build_artifact_path": "android/build/outputs/apk/fdroid/release/*.apk",
       "post_signing": true,
       "output_name": "tailscale",
       "package_name": "com.tailscale.ipn"

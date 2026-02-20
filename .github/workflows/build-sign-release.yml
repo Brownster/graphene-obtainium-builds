@@ -363,6 +363,7 @@ jobs:
           file: ${{ steps.verify.outputs.signed_apk }}
           format: spdx-json
           output-file: sbom.spdx.json
+          artifact-name: ${{ matrix.id }}-sbom.spdx.json
 
       - name: Vulnerability scan (grype)
         if: steps.exists.outputs.exists != 'true'
@@ -371,7 +372,6 @@ jobs:
           sbom: sbom.spdx.json
           fail-build: false
           output-format: sarif
-          output-file: grype.sarif
 
       - name: Publish release
         if: steps.exists.outputs.exists != 'true'
@@ -405,7 +405,6 @@ jobs:
             signing-cert-sha256.txt \
             build-metadata.json \
             sbom.spdx.json \
-            grype.sarif \
             --title "$RELEASE_NAME" \
             --notes-file release-notes.md \
             -R "$RELEASE_REPO" || {
