@@ -14,7 +14,8 @@ Each item in `apps/apps.json` supports:
 - `uses_ruby`: `true` if build needs Ruby/Fastlane.
 - `ruby_version`: Ruby version when `uses_ruby` is true.
 - `uses_go`: `true` if build needs Go.
-- `go_version_file`: path to `go.mod` when `uses_go` is true.
+- `go_version`: explicit Go version (e.g. `"1.21"`) to use instead of reading from file. Takes precedence over `go_version_file`.
+- `go_version_file`: path to `go.mod` when `uses_go` is true and `go_version` is not set.
 - `java_version`: Java version for Android builds.
 - `android_build_tools`: build-tools version (for `zipalign`/`apksigner`).
 - `build_script`: shell command run in `working_directory`.

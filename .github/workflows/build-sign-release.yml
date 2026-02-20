@@ -158,7 +158,8 @@ jobs:
         if: steps.exists.outputs.exists != 'true' && matrix.uses_go == true
         uses: actions/setup-go@v5
         with:
-          go-version-file: source/${{ matrix.go_version_file }}
+          go-version: ${{ matrix.go_version || '' }}
+          go-version-file: ${{ (!matrix.go_version && matrix.go_version_file) && format('source/{0}', matrix.go_version_file) || '' }}
 
       - name: Setup Java
         if: steps.exists.outputs.exists != 'true'
