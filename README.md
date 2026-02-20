@@ -31,6 +31,7 @@ A single repo keeps your signing, policies, and automation in one place while st
 - `navic` (`paigely/Navic`)
 - `mattermost-mobile` (`mattermost/mattermost-mobile`)
 - `tailscale-android` (`tailscale/tailscale-android`)
+- `signal-android` (`signalapp/Signal-Android`)
 
 ## Adding an app
 

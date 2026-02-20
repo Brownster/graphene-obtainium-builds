@@ -123,6 +123,7 @@ jobs:
           repository: ${{ matrix.upstream_repo }}
           ref: ${{ steps.upstream.outputs.tag }}
           fetch-depth: 1
+          submodules: recursive
           path: source
 
       - name: Setup Node
