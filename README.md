@@ -21,7 +21,7 @@ A single repo keeps signing, policies, and automation in one place. Each app is 
    - `ANDROID_KEYSTORE_PASSWORD`
    - `ANDROID_KEY_ALIAS`
    - `ANDROID_KEY_PASSWORD`
-   - `RELEASE_REPO_TOKEN` (classic PAT with `repo` scope to publish to per-app repos)
+   - `RELEASE_REPO_TOKEN` (classic PAT with `repo` scope, or fine-grained token with `Contents: Read and write` on all target release repos)
    - Optional: `EXPECTED_SIGNING_CERT_SHA256` (enforces cert pinning to your own key)
 3. Commit and push this repo.
 4. Run `Build, Sign, Release APKs` workflow manually.

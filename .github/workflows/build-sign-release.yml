@@ -115,10 +115,16 @@ jobs:
           fi
 
           export GH_TOKEN="${RELEASE_REPO_TOKEN:-$GH_FALLBACK_TOKEN}"
-          if gh release view "$RELEASE_TAG" -R "$RELEASE_REPO" >/dev/null 2>&1; then
+          check_output="$(mktemp)"
+          if gh release view "$RELEASE_TAG" -R "$RELEASE_REPO" >"$check_output" 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -Eq "HTTP 404|release not found|Not Found" "$check_output"; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Failed to query release in $RELEASE_REPO" >&2
+            echo "Check RELEASE_REPO_TOKEN permissions and repository access" >&2
+            cat "$check_output" >&2
+            exit 1
           fi
 
       - name: Existing release found
@@ -402,4 +408,8 @@ jobs:
             grype.sarif \
             --title "$RELEASE_NAME" \
             --notes-file release-notes.md \
-            -R "$RELEASE_REPO"
+            -R "$RELEASE_REPO" || {
+              echo "Failed to publish release to $RELEASE_REPO" >&2
+              echo "Ensure RELEASE_REPO_TOKEN can write releases in that repository" >&2
+              exit 1
+            }
