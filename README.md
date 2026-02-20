@@ -34,6 +34,8 @@ A single repo keeps signing, policies, and automation in one place. Each app is 
 - `tailscale-android` (`tailscale/tailscale-android`)
 - `signal-android` (`signalapp/Signal-Android`)
 - `newpipe` (`TeamNewPipe/NewPipe`)
+- `bitwarden-android` (`bitwarden/android`)
+- `jellyfin-android` (`jellyfin/jellyfin-android`)
 
 ## Adding an app
 
