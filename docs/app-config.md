@@ -6,6 +6,7 @@ Each item in `apps/apps.json` supports:
 - `enabled`: whether it is included in scheduled runs.
 - `upstream_repo`: `owner/repo` source to build.
 - `version_source`: `latest_release` or `latest_tag`.
+- `checkout_submodules`: `false`, `true`, or `recursive` for upstream checkout.
 - `working_directory`: subdir in source repo where build runs.
 - `uses_node`: `true` if build needs Node.
 - `node_version`: Node version when `uses_node` is true.

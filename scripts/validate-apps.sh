@@ -16,6 +16,7 @@ jq -e '
     and has("enabled")
     and has("upstream_repo")
     and has("version_source")
+    and has("checkout_submodules")
     and has("working_directory")
     and has("uses_node")
     and has("node_version")
@@ -38,6 +39,10 @@ jq -e '[.apps[].id] | length == (unique | length)' "$CONFIG_FILE" >/dev/null
 
 jq -e '
   [ .apps[] | select(.version_source != "latest_release" and .version_source != "latest_tag") ] | length == 0
+' "$CONFIG_FILE" >/dev/null
+
+jq -e '
+  [ .apps[] | select(.checkout_submodules != "false" and .checkout_submodules != "true" and .checkout_submodules != "recursive") ] | length == 0
 ' "$CONFIG_FILE" >/dev/null
 
 jq -e '
