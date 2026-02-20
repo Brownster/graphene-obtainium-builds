@@ -81,7 +81,7 @@
       "uses_go": true,
       "go_version": "1.21",
       "go_version_file": "",
-      "java_version": "17",
+      "java_version": "11",
       "android_build_tools": "34.0.0",
       "build_script": "make release_aar && cd android && ./gradlew assembleFdroidRelease --stacktrace",
       "build_artifact_path": "android/build/outputs/apk/fdroid/release/*.apk",
