@@ -106,7 +106,7 @@
       "java_version": "17",
       "android_build_tools": "35.0.0",
       "build_script": "sed -i 's/-Xmx12g/-Xmx5g/' gradle.properties && ./gradlew assembleWebsiteProdRelease --stacktrace",
-      "build_artifact_path": "app/build/outputs/apk/websiteProdRelease/*.apk",
+      "build_artifact_path": "app/build/outputs/apk/websiteProd/release/*universal*.apk",
       "post_signing": true,
       "output_name": "signal",
       "package_name": "org.thoughtcrime.securesms"
