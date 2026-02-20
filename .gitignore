@@ -1,0 +1,16 @@
+# Local build artifacts
+*.apk
+*.aab
+*.sarif
+*.spdx.json
+*.sha256
+build-metadata.json
+
+# Keys
+*.jks
+*.keystore
+*.jks.b64
+
+# OS / editor
+.DS_Store
+*.swp

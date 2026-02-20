@@ -1,0 +1,365 @@
+name: Build, Sign, Release APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: Optional app id from apps/apps.json
+        required: false
+        type: string
+  schedule:
+    - cron: "17 */8 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate app config
+        run: ./scripts/validate-apps.sh apps/apps.json
+
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          filter="${{ github.event.inputs.app_id || '' }}"
+
+          if [ -n "$filter" ]; then
+            matrix=$(jq -c --arg id "$filter" '{include: [.apps[] | select(.enabled == true and .id == $id)]}' apps/apps.json)
+          else
+            matrix=$(jq -c '{include: [.apps[] | select(.enabled == true)]}' apps/apps.json)
+          fi
+
+          count=$(echo "$matrix" | jq '.include | length')
+          if [ "$count" -eq 0 ]; then
+            echo "No enabled apps selected" >&2
+            exit 1
+          fi
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Resolve upstream version
+        id: upstream
+        uses: actions/github-script@v7
+        env:
+          UPSTREAM_REPO: ${{ matrix.upstream_repo }}
+          VERSION_SOURCE: ${{ matrix.version_source }}
+        with:
+          script: |
+            const [owner, repo] = process.env.UPSTREAM_REPO.split('/');
+            if (!owner || !repo) {
+              core.setFailed(`Invalid upstream_repo: ${process.env.UPSTREAM_REPO}`);
+              return;
+            }
+
+            if (process.env.VERSION_SOURCE === 'latest_tag') {
+              const tags = await github.paginate(github.rest.repos.listTags, {
+                owner,
+                repo,
+                per_page: 100,
+              });
+              if (!tags.length) {
+                core.setFailed('No tags found upstream');
+                return;
+              }
+              core.setOutput('tag', tags[0].name);
+              return;
+            }
+
+            const rel = await github.rest.repos.getLatestRelease({ owner, repo });
+            core.setOutput('tag', rel.data.tag_name);
+            core.setOutput('release_url', rel.data.html_url || '');
+
+      - name: Compute release tag
+        id: reltag
+        run: echo "tag=${{ matrix.id }}-${{ steps.upstream.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if release already exists
+        id: exists
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.reltag.outputs.tag }}
+        with:
+          script: |
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: process.env.RELEASE_TAG,
+              });
+              core.setOutput('exists', 'true');
+            } catch (error) {
+              if (error.status === 404) {
+                core.setOutput('exists', 'false');
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Existing release found
+        if: steps.exists.outputs.exists == 'true'
+        run: echo "Release ${{ steps.reltag.outputs.tag }} already exists. Skipping."
+
+      - name: Checkout upstream source
+        if: steps.exists.outputs.exists != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.upstream_repo }}
+          ref: ${{ steps.upstream.outputs.tag }}
+          fetch-depth: 1
+          path: source
+
+      - name: Setup Node
+        if: steps.exists.outputs.exists != 'true' && matrix.uses_node == true
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node_version }}
+
+      - name: Setup Ruby
+        if: steps.exists.outputs.exists != 'true' && matrix.uses_ruby == true
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby_version }}
+          bundler-cache: false
+
+      - name: Setup Go
+        if: steps.exists.outputs.exists != 'true' && matrix.uses_go == true
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: source/${{ matrix.go_version_file }}
+
+      - name: Setup Java
+        if: steps.exists.outputs.exists != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java_version }}
+
+      - name: Setup Android SDK
+        if: steps.exists.outputs.exists != 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build-tools
+        if: steps.exists.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          sdkmanager "build-tools;${{ matrix.android_build_tools }}" "platform-tools"
+
+      - name: Prepare keystore
+        if: steps.exists.outputs.exists != 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "Missing ANDROID_KEYSTORE_B64 secret" >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > release.jks
+
+      - name: Build APK artifact
+        if: steps.exists.outputs.exists != 'true'
+        working-directory: source/${{ matrix.working_directory }}
+        env:
+          BUILD_SCRIPT: ${{ matrix.build_script }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bash -euo pipefail -c "$BUILD_SCRIPT"
+
+      - name: Resolve build artifact
+        if: steps.exists.outputs.exists != 'true'
+        id: artifact
+        run: |
+          set -euo pipefail
+          ART_PATTERN="source/${{ matrix.working_directory }}/${{ matrix.build_artifact_path }}"
+          shopt -s nullglob
+          matches=( $ART_PATTERN )
+
+          if [ "${#matches[@]}" -eq 0 ]; then
+            echo "No build artifact found for pattern: $ART_PATTERN" >&2
+            find source -maxdepth 8 -type f -name '*.apk' | sed 's#^#candidate: #' || true
+            exit 1
+          fi
+
+          IFS=$'\n' sorted=($(printf '%s\n' "${matches[@]}" | sort))
+          artifact="${sorted[0]}"
+
+          echo "Using artifact: $artifact"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Align and sign APK
+        if: steps.exists.outputs.exists != 'true' && matrix.post_signing == true
+        id: sign
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SOURCE_APK="${{ steps.artifact.outputs.artifact }}"
+
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "Missing one or more signing secrets" >&2
+            exit 1
+          fi
+
+          BUILD_TOOLS="${{ matrix.android_build_tools }}"
+          ZIPALIGN="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/zipalign"
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/apksigner"
+
+          ALIGNED="${{ matrix.id }}-aligned.apk"
+          SIGNED="${{ matrix.output_name }}-${{ steps.upstream.outputs.tag }}.apk"
+
+          "$ZIPALIGN" -v -p 4 "$SOURCE_APK" "$ALIGNED"
+
+          "$APKSIGNER" sign \
+            --ks release.jks \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
+            --out "$SIGNED" \
+            "$ALIGNED"
+
+          echo "signed_apk=$SIGNED" >> "$GITHUB_OUTPUT"
+
+      - name: Use build-produced signed APK
+        if: steps.exists.outputs.exists != 'true' && matrix.post_signing == false
+        id: nosign
+        run: |
+          set -euo pipefail
+          SOURCE_APK="${{ steps.artifact.outputs.artifact }}"
+          SIGNED="${{ matrix.output_name }}-${{ steps.upstream.outputs.tag }}.apk"
+          cp "$SOURCE_APK" "$SIGNED"
+          echo "signed_apk=$SIGNED" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signed APK and cert digest
+        if: steps.exists.outputs.exists != 'true'
+        id: verify
+        env:
+          EXPECTED_SIGNING_CERT_SHA256: ${{ secrets.EXPECTED_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="${{ matrix.android_build_tools }}"
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/apksigner"
+          SIGNED_APK="${{ steps.sign.outputs.signed_apk || steps.nosign.outputs.signed_apk }}"
+
+          "$APKSIGNER" verify --verbose --print-certs "$SIGNED_APK"
+
+          digest=$(
+            "$APKSIGNER" verify --print-certs "$SIGNED_APK" \
+              | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print $2; exit}'
+          )
+
+          if [ -z "$digest" ]; then
+            echo "Could not parse signing certificate digest" >&2
+            exit 1
+          fi
+
+          if [ -n "$EXPECTED_SIGNING_CERT_SHA256" ] && [ "$digest" != "$EXPECTED_SIGNING_CERT_SHA256" ]; then
+            echo "Signing certificate digest mismatch" >&2
+            echo "Expected: $EXPECTED_SIGNING_CERT_SHA256" >&2
+            echo "Actual:   $digest" >&2
+            exit 1
+          fi
+
+          echo "$digest" > signing-cert-sha256.txt
+          sha256sum "$SIGNED_APK" > "$SIGNED_APK.sha256"
+          echo "signed_apk=$SIGNED_APK" >> "$GITHUB_OUTPUT"
+
+      - name: Validate package name
+        if: steps.exists.outputs.exists != 'true' && matrix.package_name != ''
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="${{ matrix.android_build_tools }}"
+          AAPT="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/aapt"
+          SIGNED_APK="${{ steps.verify.outputs.signed_apk }}"
+          ACTUAL_PACKAGE=$(
+            "$AAPT" dump badging "$SIGNED_APK" \
+              | awk -F"'" '/package: name=/{print $2; exit}'
+          )
+
+          if [ "$ACTUAL_PACKAGE" != "${{ matrix.package_name }}" ]; then
+            echo "Package mismatch" >&2
+            echo "Expected: ${{ matrix.package_name }}" >&2
+            echo "Actual:   $ACTUAL_PACKAGE" >&2
+            exit 1
+          fi
+
+      - name: Build metadata
+        if: steps.exists.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg app_id "${{ matrix.id }}" \
+            --arg upstream_repo "${{ matrix.upstream_repo }}" \
+            --arg upstream_tag "${{ steps.upstream.outputs.tag }}" \
+            --arg upstream_release_url "${{ steps.upstream.outputs.release_url }}" \
+            --arg post_signing "${{ matrix.post_signing }}" \
+            --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg workflow_run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{
+              app_id: $app_id,
+              upstream_repo: $upstream_repo,
+              upstream_tag: $upstream_tag,
+              upstream_release_url: $upstream_release_url,
+              post_signing: $post_signing,
+              built_at_utc: $built_at,
+              workflow_run: $workflow_run
+            }' > build-metadata.json
+
+      - name: SBOM (syft)
+        if: steps.exists.outputs.exists != 'true'
+        uses: anchore/sbom-action@v0
+        with:
+          path: ${{ steps.verify.outputs.signed_apk }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Vulnerability scan (grype)
+        if: steps.exists.outputs.exists != 'true'
+        uses: anchore/scan-action@v3
+        with:
+          path: ${{ steps.verify.outputs.signed_apk }}
+          fail-build: false
+          output-format: sarif
+          output-file: grype.sarif
+
+      - name: Publish release
+        if: steps.exists.outputs.exists != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.reltag.outputs.tag }}
+          name: ${{ matrix.id }} ${{ steps.upstream.outputs.tag }}
+          body: |
+            Self-built from source and signed with personal key.
+
+            - App ID: `${{ matrix.id }}`
+            - Upstream: `${{ matrix.upstream_repo }}`
+            - Upstream tag: `${{ steps.upstream.outputs.tag }}`
+            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          files: |
+            ${{ steps.verify.outputs.signed_apk }}
+            ${{ steps.verify.outputs.signed_apk }}.sha256
+            signing-cert-sha256.txt
+            build-metadata.json
+            sbom.spdx.json
+            grype.sarif
