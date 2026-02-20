@@ -83,7 +83,7 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "34.0.0",
-      "build_script": "sdkmanager 'ndk;23.1.7779620' && make release_aar && export JAVA_HOME=$JAVA_HOME_11_X64 && cd android && ./gradlew assembleFdroidRelease --stacktrace",
+      "build_script": "sdkmanager 'ndk;23.1.7779620' && printf 'sdk.dir=%s\\nndk.dir=%s/ndk/23.1.7779620\\n' \"$ANDROID_SDK_ROOT\" \"$ANDROID_SDK_ROOT\" > android/local.properties && make release_aar && export JAVA_HOME=$JAVA_HOME_11_X64 && cd android && ./gradlew assembleFdroidRelease --stacktrace",
       "build_artifact_path": "android/build/outputs/apk/fdroid/release/*.apk",
       "post_signing": true,
       "output_name": "tailscale",
