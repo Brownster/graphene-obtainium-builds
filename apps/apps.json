@@ -24,7 +24,7 @@
     },
     {
       "id": "navic",
-      "enabled": true,
+      "enabled": false,
       "upstream_repo": "paigely/Navic",
       "release_repo": "Brownster/graphene-obtainium-navic",
       "version_source": "latest_tag",
@@ -193,7 +193,7 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "35.0.0",
-      "build_script": "./gradlew assembleRelease --stacktrace",
+      "build_script": "chmod +x gradlew && ./gradlew assembleRelease --stacktrace",
       "build_artifact_path": "app/build/outputs/apk/release/*.apk",
       "post_signing": true,
       "output_name": "streamflix",
@@ -215,8 +215,8 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "35.0.0",
-      "build_script": "./gradlew :app-mobile:assembleRelease --stacktrace",
-      "build_artifact_path": "app-mobile/build/outputs/apk/*/release/*.apk",
+      "build_script": "chmod +x gradlew && ./gradlew :app:assembleRelease --stacktrace",
+      "build_artifact_path": "app/build/outputs/apk/release/*.apk",
       "post_signing": true,
       "output_name": "flixclusive",
       "package_name": ""
