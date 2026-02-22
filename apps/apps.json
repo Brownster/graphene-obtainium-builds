@@ -220,7 +220,7 @@
       "post_signing": true,
       "output_name": "flixclusive",
       "package_name": ""
-    }
+    },
     {
       "id": "kdeconnect-android",
       "enabled": true,
