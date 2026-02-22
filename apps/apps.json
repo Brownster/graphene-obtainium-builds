@@ -221,5 +221,27 @@
       "output_name": "flixclusive",
       "package_name": ""
     }
+    {
+      "id": "kdeconnect-android",
+      "enabled": true,
+      "upstream_repo": "KDE/kdeconnect-android",
+      "release_repo": "Brownster/graphene-obtainium-kdeconnect",
+      "version_source": "latest_tag",
+      "checkout_submodules": "false",
+      "working_directory": ".",
+      "uses_node": false,
+      "node_version": "",
+      "uses_ruby": false,
+      "ruby_version": "",
+      "uses_go": false,
+      "go_version_file": "",
+      "java_version": "17",
+      "android_build_tools": "34.0.0",
+      "build_script": "chmod +x gradlew && ./gradlew assembleRelease --stacktrace",
+      "build_artifact_path": "app/build/outputs/apk/release/*.apk",
+      "post_signing": true,
+      "output_name": "kdeconnect",
+      "package_name": "org.kde.kdeconnect_tp"
+    }
   ]
 }
