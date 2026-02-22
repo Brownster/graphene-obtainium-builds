@@ -193,7 +193,7 @@
       "go_version_file": "",
       "java_version": "17",
       "android_build_tools": "35.0.0",
-      "build_script": "chmod +x gradlew && ./gradlew assembleRelease --stacktrace",
+      "build_script": "printf 'sdk.dir=%s\\nAPP_LAYOUT=mobile\\nTMDB_API_KEY=%s\\nSUBDL_API_KEY=%s\\nRABBITSTREAM_SOURCE_API=%s\\n' \"$ANDROID_SDK_ROOT\" \"${STREAMFLIX_TMDB_API_KEY:-}\" \"${STREAMFLIX_SUBDL_API_KEY:-}\" \"${STREAMFLIX_RABBITSTREAM_SOURCE_API:-}\" > local.properties && chmod +x gradlew && ./gradlew assembleRelease --stacktrace",
       "build_artifact_path": "app/build/outputs/apk/release/*.apk",
       "post_signing": true,
       "output_name": "streamflix",

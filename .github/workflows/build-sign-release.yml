@@ -201,6 +201,9 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_ACTOR: ${{ github.actor }}
+          STREAMFLIX_TMDB_API_KEY: ${{ secrets.STREAMFLIX_TMDB_API_KEY }}
+          STREAMFLIX_SUBDL_API_KEY: ${{ secrets.STREAMFLIX_SUBDL_API_KEY }}
+          STREAMFLIX_RABBITSTREAM_SOURCE_API: ${{ secrets.STREAMFLIX_RABBITSTREAM_SOURCE_API }}
         run: |
           set -euo pipefail
           bash -euo pipefail -c "$BUILD_SCRIPT"
