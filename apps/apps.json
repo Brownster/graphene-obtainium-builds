@@ -238,7 +238,7 @@
       "java_version": "17",
       "android_build_tools": "34.0.0",
       "build_script": "chmod +x gradlew && ./gradlew assembleRelease --stacktrace",
-      "build_artifact_path": "app/build/outputs/apk/release/*.apk",
+      "build_artifact_path": "build/outputs/apk/release/*.apk",
       "post_signing": true,
       "output_name": "kdeconnect",
       "package_name": "org.kde.kdeconnect_tp"
